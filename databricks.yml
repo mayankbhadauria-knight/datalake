@@ -1,0 +1,87 @@
+bundle:
+  name: data-lake-ml-bundle
+
+
+
+variables:
+  qa_host:
+    description: "QA Databricks workspace host"
+    default: "https://dnimbus-partner-workspace.cloud.databricks.com"
+  qa_root_path:
+    description: "QA root path in workspace"
+    default: "/Users/mayank.bhadauria@datanimbus.com/data_lake_bundle"
+  qa_profile:
+    description: "Databricks CLI profile name for QA"
+    default: "mayank.bhadauria@datanimbus.com"
+
+  experiment_path:
+    description: "MLflow experiment path"
+    default: "/Shared/data_lake_mayank/ml_experiment"
+
+  model_name:
+    description: "Full UC model name (catalog.schema.model)"
+    default: "training_2025.mayank.new_ml_model"
+
+  model_alias:
+    description: "UC model alias to use for inference"
+    default: "champion"
+
+  data_path:
+    description: "Path to input data (volume or DBFS)"
+    default: "/Volumes/training_2025/mayank/data/input.csv"
+
+sync:
+  paths:
+    - .
+
+
+
+resources:
+  jobs:
+    data_lake_ml_job:
+      name: "Data Lake ML - Train & Predict"
+
+      # 1. OPTIONAL: Classic cluster config left for future modification
+      # job_clusters:
+      #   - job_cluster_key: ml_cluster
+      #     new_cluster:
+      #       spark_version: "15.4.x-cpu-ml-scala2.12"
+      #       node_type_id: "Standard_DS3_v2"
+      #       num_workers: 1
+
+
+
+      # 2. Serverless Environment Configuration
+      environments:
+        - environment_key: serverless_env_v4
+          spec:
+            environment_version: "4" 
+
+      tasks:
+        - task_key: run_ml_model_notebook
+          # Link this task to the serverless environment defined above
+          environment_key: serverless_env_v4
+          notebook_task:
+            # Using workspace.file_path to resolve the /files/ folder automatically
+            notebook_path: "src/main/ml/notebooks/train_model.ipynb"
+            base_parameters:
+              experiment_path: "${var.experiment_path}"
+              model_name: "${var.model_name}"
+              model_alias: "${var.model_alias}"
+              data_path: "${var.data_path}"
+              # Explicitly tells the notebook where to save model artifacts
+              model_output_path: "${workspace.file_path}/src/main/ml/models"
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://dnimbus-partner-workspace.cloud.databricks.com
+      root_path: /Users/mayank.bhadauria@datanimbus.com/data_lake_dev
+      profile: mayank.bhadauria@datanimbus.com
+
+  qa:
+    workspace:
+      host: https://dbc-6c34c82c-1016.cloud.databricks.com
+      root_path: ${var.qa_root_path}
+      profile: qa
